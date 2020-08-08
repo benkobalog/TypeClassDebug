@@ -13,20 +13,27 @@ object TypeClassDebug {
     import c.universe._
     val typeClassTypeName = typeClassType.tpe.toString
 
-    def extractClassParams(tpe: Type): List[MethodSymbol] =
-      tpe.members.collect {
-        case m: MethodSymbol if m.isCaseAccessor => m
-      }.toList
+    case class Field(tpe: Type, name: String)
 
-    def constructInstanceTree(currentType: MethodSymbol): TypeClassInstanceTree = {
-      val currentTypeName = currentType.returnType.toString
+    def extractClassParams(tpe: Type): List[Field] =
+      tpe.members.collect { case param: MethodSymbol if param.isCaseAccessor => param }
+        .toList
+        .flatMap { param =>
+          // I added the typeArgs part to handle Option and Either
+          val typeArgs = param.returnType.typeArgs
+          if (typeArgs.isEmpty) List(Field(param.returnType, param.name.toString))
+          else typeArgs.map(t => Field(t, param.name.toString))
+        }
+
+    def constructInstanceTree(field: Field): TypeClassInstanceTree = {
+      val currentTypeName = field.tpe.toString
       try {
         c.typecheck(c.parse(s"implicitly[$typeClassTypeName[$currentTypeName]]"))
         ExistingInstance
       } catch {
         case _: TypecheckException =>
-          val classParams = extractClassParams(currentType.returnType)
-          val fieldName = currentType.name.toString
+          val classParams = extractClassParams(field.tpe)
+          val fieldName = field.name
           val childInstances = classParams.map(constructInstanceTree)
           if (childInstances.isEmpty)
             MissingInstance(fieldName, currentTypeName)

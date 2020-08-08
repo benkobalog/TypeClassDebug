@@ -42,5 +42,14 @@ class TypeClassDebugTest extends org.scalatest.wordspec.AnyWordSpec with Matcher
       "findMissingInstances[Encoder, TopLevel]" should compile
       "findMissingInstances[Decoder, TopLevel]" shouldNot compile
     }
+
+    "Find types inside type parameters" in {
+      case class TopLevel2(s: String, m: MissingInstance2)
+      case class MissingInstance2(x: Int, d: Option[Lvl3])
+      case class Lvl3(asd: java.time.DayOfWeek)
+
+      "findMissingInstances[Encoder, TopLevel2]" shouldNot compile
+      "findMissingInstances[Decoder, TopLevel2]" shouldNot compile
+    }
   }
 }
